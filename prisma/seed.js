@@ -1,11 +1,12 @@
 const prisma = require("../src/db");
-const { users, posts } = require("./seed-data");
+const { users, posts, likes } = require("./seed-data");
 
 async function main() {
+  await prisma.like.deleteMany();
   await prisma.post.deleteMany();
   await prisma.user.deleteMany();
 
-  const createdUsers = await prisma.user.createMany({
+  const createdUsers = await prisma.user.createManyAndReturn({
     data: users.map((u) => ({
       username: u.username,
       email: u.email,
@@ -16,8 +17,14 @@ async function main() {
     })),
   });
 
-  const createdPosts = await prisma.post.createMany({
+  const userMap = new Map();
+  for (const u of createdUsers) {
+    userMap.set(u.username, u.id);
+  }
+
+  const createdPosts = await prisma.post.createManyAndReturn({
     data: posts.map((p) => ({
+      authorId: userMap.get(p.author),
       imageUrl: p.imageUrl,
       caption: p.caption,
       location: p.location,
@@ -25,7 +32,22 @@ async function main() {
     })),
   });
 
-  console.log(`🌱 Seeded ${createdUsers.count} users and ${createdPosts.count} posts`);
+  const postMap = new Map();
+  for (const p of createdPosts) {
+    const key = p.imageUrl.split("/")[4];
+    postMap.set(key, p.id);
+  }
+
+  const createdLikes = await prisma.like.createManyAndReturn({
+    data: likes.map((l) => ({
+      userId: userMap.get(l.user),
+      postId: postMap.get(l.post),
+    })),
+  });
+
+  console.log(
+    `🌱 Seeded ${createdUsers.length} users, ${createdPosts.length} posts and ${createdLikes.length} likes`
+  );
 }
 
 main()
