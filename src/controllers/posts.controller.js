@@ -1,14 +1,30 @@
 const postsService = require("../services/posts.service");
+const prisma = require("../db");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 
 async function create(req, res) {
-  const { imageUrl, caption, location } = req.body;
-  if (!imageUrl) {
-    return res.status(400).json({ error: "imageUrl is required" });
+  const { imageUrl, authorId, caption, location } = req.body;
+  if (!imageUrl || authorId === undefined || authorId === null) {
+    return res.status(400).json({ error: "imageUrl and authorId are required" });
+  }
+
+  const parsedAuthorId = parseInt(authorId, 10);
+  if (isNaN(parsedAuthorId)) {
+    return res.status(400).json({ error: "imageUrl and authorId are required" });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: parsedAuthorId } });
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
   }
 
   try {
-    const post = await postsService.createPost({ imageUrl, caption, location });
+    const post = await postsService.createPost({
+      imageUrl,
+      authorId: parsedAuthorId,
+      caption,
+      location,
+    });
     return res.status(201).json(post);
   } catch (err) {
     return res.status(500).json({ error: "Internal server error" });

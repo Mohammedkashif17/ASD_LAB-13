@@ -6,18 +6,41 @@ async function createPost(data) {
       imageUrl: data.imageUrl,
       caption: data.caption !== undefined ? data.caption : null,
       location: data.location !== undefined ? data.location : null,
+      authorId: data.authorId,
     },
   });
 }
 
 async function listPosts({ page = 1, limit = 10, sortBy = "createdAt", order = "desc", where = {} } = {}) {
   const skip = (page - 1) * limit;
+
+  let orderBy;
+  if (sortBy === "likes") {
+    orderBy = [{ likes: { _count: order } }, { createdAt: "desc" }];
+  } else {
+    orderBy = { [sortBy]: order };
+  }
+
   const [data, total] = await prisma.$transaction([
     prisma.post.findMany({
       where,
       skip,
       take: limit,
-      orderBy: { [sortBy]: order },
+      orderBy,
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            fullname: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+          },
+        },
+      },
     }),
     prisma.post.count({ where }),
   ]);
@@ -28,6 +51,20 @@ async function listPosts({ page = 1, limit = 10, sortBy = "createdAt", order = "
 async function getPostById(id) {
   return await prisma.post.findUnique({
     where: { id },
+    include: {
+      author: {
+        select: {
+          id: true,
+          username: true,
+          fullname: true,
+        },
+      },
+      _count: {
+        select: {
+          likes: true,
+        },
+      },
+    },
   });
 }
 
