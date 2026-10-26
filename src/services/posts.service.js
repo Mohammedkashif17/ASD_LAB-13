@@ -10,8 +10,19 @@ async function createPost(data) {
   });
 }
 
-async function listPosts() {
-  return await prisma.post.findMany();
+async function listPosts({ page = 1, limit = 10, sortBy = "createdAt", order = "desc", where = {} } = {}) {
+  const skip = (page - 1) * limit;
+  const [data, total] = await prisma.$transaction([
+    prisma.post.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { [sortBy]: order },
+    }),
+    prisma.post.count({ where }),
+  ]);
+
+  return { data, total };
 }
 
 async function getPostById(id) {

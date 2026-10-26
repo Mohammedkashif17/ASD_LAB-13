@@ -1,4 +1,5 @@
 const postsService = require("../services/posts.service");
+const { parsePagination, buildMeta } = require("../utils/pagination");
 
 async function create(req, res) {
   const { imageUrl, caption, location } = req.body;
@@ -15,9 +16,55 @@ async function create(req, res) {
 }
 
 async function list(req, res) {
+  const pagination = parsePagination(req.query);
+  if (pagination.error) {
+    return res.status(400).json({ error: pagination.error });
+  }
+  const { page, limit } = pagination;
+
+  const sortBy = req.query.sortBy || "createdAt";
+  const allowedSortBy = ["createdAt", "updatedAt"];
+  if (!allowedSortBy.includes(sortBy)) {
+    return res.status(400).json({ error: "sortBy must be one of: createdAt, updatedAt" });
+  }
+
+  const order = req.query.order || "desc";
+  if (!["asc", "desc"].includes(order)) {
+    return res.status(400).json({ error: "order must be asc or desc" });
+  }
+
+  const where = {};
+
+  if (req.query.location) {
+    where.location = { equals: req.query.location, mode: "insensitive" };
+  }
+
+  if (req.query.search) {
+    where.caption = { contains: req.query.search, mode: "insensitive" };
+  }
+
+  if (req.query.from || req.query.to) {
+    const fromDate = req.query.from ? new Date(req.query.from) : null;
+    const toDate = req.query.to ? new Date(req.query.to) : null;
+
+    if (
+      (req.query.from && (!fromDate || isNaN(fromDate.getTime()))) ||
+      (req.query.to && (!toDate || isNaN(toDate.getTime())))
+    ) {
+      return res.status(400).json({ error: "from and to must be valid dates" });
+    }
+
+    where.createdAt = {};
+    if (fromDate) where.createdAt.gte = fromDate;
+    if (toDate) where.createdAt.lt = toDate;
+  }
+
   try {
-    const posts = await postsService.listPosts();
-    return res.status(200).json(posts);
+    const { data, total } = await postsService.listPosts({ page, limit, sortBy, order, where });
+    return res.status(200).json({
+      data,
+      meta: buildMeta(page, limit, total),
+    });
   } catch (err) {
     return res.status(500).json({ error: "Internal server error" });
   }
