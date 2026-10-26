@@ -39,9 +39,9 @@ async function list(req, res) {
   const { page, limit } = pagination;
 
   const sortBy = req.query.sortBy || "createdAt";
-  const allowedSortBy = ["createdAt", "updatedAt"];
+  const allowedSortBy = ["createdAt", "updatedAt", "likes"];
   if (!allowedSortBy.includes(sortBy)) {
-    return res.status(400).json({ error: "sortBy must be one of: createdAt, updatedAt" });
+    return res.status(400).json({ error: "sortBy must be one of: createdAt, updatedAt, likes" });
   }
 
   const order = req.query.order || "desc";
