@@ -68,6 +68,28 @@ async function getPostById(id) {
   });
 }
 
+async function getPostLikes(postId) {
+  const likes = await prisma.like.findMany({
+    where: { postId },
+    orderBy: {
+      user: {
+        username: "asc",
+      },
+    },
+    select: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          fullname: true,
+        },
+      },
+    },
+  });
+
+  return likes.map((l) => l.user);
+}
+
 async function updatePost(id, data) {
   return await prisma.post.update({
     where: { id },
@@ -85,6 +107,7 @@ module.exports = {
   createPost,
   listPosts,
   getPostById,
+  getPostLikes,
   updatePost,
   deletePost,
 };

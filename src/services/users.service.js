@@ -29,7 +29,39 @@ async function listUsers({ page = 1, limit = 10, sortBy = "createdAt", order = "
 async function getUserById(id) {
   return await prisma.user.findUnique({
     where: { id },
+    include: {
+      _count: {
+        select: {
+          posts: true,
+          likes: true,
+        },
+      },
+    },
   });
+}
+
+async function getUserPosts(id, { page = 1, limit = 10 } = {}) {
+  const skip = (page - 1) * limit;
+  const where = { authorId: id };
+
+  const [data, total] = await prisma.$transaction([
+    prisma.post.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: {
+            likes: true,
+          },
+        },
+      },
+    }),
+    prisma.post.count({ where }),
+  ]);
+
+  return { data, total };
 }
 
 async function updateUser(id, data) {
@@ -49,6 +81,7 @@ module.exports = {
   createUser,
   listUsers,
   getUserById,
+  getUserPosts,
   updateUser,
   deleteUser,
 };

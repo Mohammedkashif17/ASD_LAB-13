@@ -48,6 +48,16 @@ async function list(req, res) {
     }
   }
 
+  if (req.query.hasPosts !== undefined) {
+    if (req.query.hasPosts === "true") {
+      where.posts = { some: {} };
+    } else if (req.query.hasPosts === "false") {
+      where.posts = { none: {} };
+    } else {
+      return res.status(400).json({ error: "hasPosts must be true or false" });
+    }
+  }
+
   if (req.query.search) {
     where.OR = [
       { username: { contains: req.query.search, mode: "insensitive" } },
@@ -78,6 +88,34 @@ async function getOne(req, res) {
       return res.status(404).json({ error: "User not found" });
     }
     return res.status(200).json(user);
+  } catch (err) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+async function getPosts(req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  try {
+    const user = await usersService.getUserById(id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const pagination = parsePagination(req.query);
+    if (pagination.error) {
+      return res.status(400).json({ error: pagination.error });
+    }
+    const { page, limit } = pagination;
+
+    const { data, total } = await usersService.getUserPosts(id, { page, limit });
+    return res.status(200).json({
+      data,
+      meta: buildMeta(page, limit, total),
+    });
   } catch (err) {
     return res.status(500).json({ error: "Internal server error" });
   }
@@ -127,6 +165,7 @@ module.exports = {
   create,
   list,
   getOne,
+  getPosts,
   update,
   remove,
 };

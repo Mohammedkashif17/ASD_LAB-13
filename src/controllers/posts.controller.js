@@ -103,6 +103,25 @@ async function getOne(req, res) {
   }
 }
 
+async function getLikes(req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    return res.status(404).json({ error: "Post not found" });
+  }
+
+  try {
+    const post = await postsService.getPostById(id);
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    const likes = await postsService.getPostLikes(id);
+    return res.status(200).json(likes);
+  } catch (err) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 async function update(req, res) {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
@@ -146,6 +165,7 @@ module.exports = {
   create,
   list,
   getOne,
+  getLikes,
   update,
   remove,
 };
