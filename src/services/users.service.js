@@ -64,6 +64,37 @@ async function getUserPosts(id, { page = 1, limit = 10 } = {}) {
   return { data, total };
 }
 
+async function getLikedPosts(id, { page = 1, limit = 10 } = {}) {
+  const skip = (page - 1) * limit;
+  const where = { likes: { some: { userId: id } } };
+
+  const [data, total] = await prisma.$transaction([
+    prisma.post.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            fullname: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+          },
+        },
+      },
+    }),
+    prisma.post.count({ where }),
+  ]);
+
+  return { data, total };
+}
+
 async function updateUser(id, data) {
   return await prisma.user.update({
     where: { id },
@@ -82,6 +113,7 @@ module.exports = {
   listUsers,
   getUserById,
   getUserPosts,
+  getLikedPosts,
   updateUser,
   deleteUser,
 };

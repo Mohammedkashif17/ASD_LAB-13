@@ -121,6 +121,34 @@ async function getPosts(req, res) {
   }
 }
 
+async function getLikedPosts(req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  try {
+    const user = await usersService.getUserById(id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const pagination = parsePagination(req.query);
+    if (pagination.error) {
+      return res.status(400).json({ error: pagination.error });
+    }
+    const { page, limit } = pagination;
+
+    const { data, total } = await usersService.getLikedPosts(id, { page, limit });
+    return res.status(200).json({
+      data,
+      meta: buildMeta(page, limit, total),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 async function update(req, res) {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
@@ -166,6 +194,7 @@ module.exports = {
   list,
   getOne,
   getPosts,
+  getLikedPosts,
   update,
   remove,
 };
