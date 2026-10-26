@@ -11,8 +11,19 @@ async function createUser(data) {
   });
 }
 
-async function listUsers() {
-  return await prisma.user.findMany();
+async function listUsers({ page = 1, limit = 10, sortBy = "createdAt", order = "desc", where = {} } = {}) {
+  const skip = (page - 1) * limit;
+  const [data, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { [sortBy]: order },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return { data, total };
 }
 
 async function getUserById(id) {

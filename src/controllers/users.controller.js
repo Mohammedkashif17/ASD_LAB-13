@@ -1,4 +1,5 @@
 const usersService = require("../services/users.service");
+const { parsePagination, buildMeta } = require("../utils/pagination");
 
 async function create(req, res) {
   const { username, email, fullname, bio } = req.body;
@@ -18,9 +19,48 @@ async function create(req, res) {
 }
 
 async function list(req, res) {
+  const pagination = parsePagination(req.query);
+  if (pagination.error) {
+    return res.status(400).json({ error: pagination.error });
+  }
+  const { page, limit } = pagination;
+
+  const sortBy = req.query.sortBy || "createdAt";
+  const allowedSortBy = ["createdAt", "username", "fullname"];
+  if (!allowedSortBy.includes(sortBy)) {
+    return res.status(400).json({ error: "sortBy must be one of: createdAt, username, fullname" });
+  }
+
+  const order = req.query.order || "desc";
+  if (!["asc", "desc"].includes(order)) {
+    return res.status(400).json({ error: "order must be asc or desc" });
+  }
+
+  const where = {};
+
+  if (req.query.isPrivate !== undefined) {
+    if (req.query.isPrivate === "true") {
+      where.isPrivate = true;
+    } else if (req.query.isPrivate === "false") {
+      where.isPrivate = false;
+    } else {
+      return res.status(400).json({ error: "isPrivate must be true or false" });
+    }
+  }
+
+  if (req.query.search) {
+    where.OR = [
+      { username: { contains: req.query.search, mode: "insensitive" } },
+      { fullname: { contains: req.query.search, mode: "insensitive" } },
+    ];
+  }
+
   try {
-    const users = await usersService.listUsers();
-    return res.status(200).json(users);
+    const { data, total } = await usersService.listUsers({ page, limit, sortBy, order, where });
+    return res.status(200).json({
+      data,
+      meta: buildMeta(page, limit, total),
+    });
   } catch (err) {
     return res.status(500).json({ error: "Internal server error" });
   }
